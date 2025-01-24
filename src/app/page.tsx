@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import confetti from 'canvas-confetti';
+import confetti, { Options } from 'canvas-confetti';
 import YouTube from 'react-youtube';
 import { CONTRACT_ADDRESS } from './contractaddress';
 import { getRandomShareText } from './components/ShareTexts';
@@ -22,13 +22,12 @@ export default function Home() {
   const [isCharging, setIsCharging] = useState(false);
   const [chargeScale, setChargeScale] = useState(1);
   const [brightness, setBrightness] = useState(1);
-  const [isHoveringReward, setIsHoveringReward] = useState(false);
   const [clapFrame, setClapFrame] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YT.Player | null>(null);
 
   // YouTube player options
   const opts = {
@@ -42,7 +41,7 @@ export default function Home() {
     },
   };
 
-  const onPlayerReady = (event: any) => {
+  const onPlayerReady = (event: YT.PlayerEvent) => {
     playerRef.current = event.target;
     // Start with lower volume
     playerRef.current.setVolume(30);
@@ -67,8 +66,8 @@ export default function Home() {
     // Create AudioContext on first user interaction
     const initAudio = async () => {
       try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContext();
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
         
         // Fetch and decode audio file
         const response = await fetch('/clap.mp3');
@@ -108,14 +107,14 @@ export default function Home() {
   const fireConfetti = () => {
     // Create gold confetti burst
     const count = 200;
-    const defaults = {
+    const defaults: Options = {
       origin: { y: 0.7 },
       colors: ['#FFD700', '#DAA520', '#FDB931'], // Gold colors
       shapes: ['square'],
       ticks: 300,
     };
 
-    function fire(particleRatio: number, opts: any) {
+    function fire(particleRatio: number, opts: Partial<Options>) {
       confetti({
         ...defaults,
         ...opts,
@@ -225,25 +224,10 @@ export default function Home() {
     }, 2000);
   };
 
-  const handleOpenReward = async () => {
-    // Resume AudioContext if it was suspended (browser requirement)
-    if (audioContextRef.current?.state === 'suspended') {
-      await audioContextRef.current.resume();
-    }
-    
-    setIsCharging(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newReward = getRandomReward();
-    setReward(newReward);
-    setIsCharging(false);
-  };
-
   const resetGame = () => {
     setIsOpen(false);
     setReward(null);
     setIsCharging(false);
-    setIsHoveringReward(false);
     setChargeScale(1);
     setBrightness(1);
     setClapFrame(1);
